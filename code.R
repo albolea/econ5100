@@ -4,26 +4,23 @@ library(here)
 library(gridExtra)
 library(GGally)
 
-here("raw_data", "my_data.csv")
+### DATA TREATMENT ######
 
-nfhs <- read_csv(here("raw_data", "nfhs_3.csv"))
+#2005-2006 National Family and Health Survey from India
+nfhs <- read_csv(here("raw_data", "nfhs_3.csv")) 
+
+#hhid-hv208: Household level variables
+#hvidx_XX Household roster
+#hv108_XX: Education in years
+#haX_XX Female roster with age, height, and weight
+#hbX_XX Male roster with age, height, and weight
+
 hh <- select(nfhs, hhid:hv208, hv270)
 
-educ <- select(nfhs, hhid,
-               starts_with("hvidx"),
-               contains("hv108"))
 
-# Note RegEx needs to be escaped
-female <- select(nfhs, hhid,
-                 matches("ha\\d_\\d\\d")
-)
-male <- select(nfhs, hhid,
-               contains("hb")
-)
-educ <- gather(educ, variable_name, var_value, -hhid)
-educ <- separate(educ, variable_name, c("var", "number"), sep = "_")
-educ <- spread(educ, key = var, value = var_value)
-educ <- filter(educ, !is.na(hvidx))
+#hhid => Family ID
+#hvidx => person ID inside a family
+#hv108 => education in years of each person ID inside a family
 
 educ <- nfhs %>%
   select(hhid, starts_with("hvidx"), contains("hv108")) %>%
@@ -73,8 +70,20 @@ base <- base %>%
          educ = as.numeric(educ))
 rm(educ, female, hh, male, nfhs)
 
+save(base, file = here("data","base.RData"),  version = NULL, ascii = FALSE, compress = TRUE)
+
+
+
+### GRAPH ######
+#load Variable if not exists
+if (!exists("base")) load(here("data","base.RData"))
+
 # Get descriptitve statistics
 summary(base)
+
+# The summary shows that height and Weight has numbers equal to 9999 which doesn't make sense, 
+#so we need to replace it for NA. The same think occurs with educ, but in this case the value used was 99
+#Also, height and Weight are missing the decimal point, so we need to divide the numbers by 10
 base <- base %>%
   mutate(
     weight = case_when(
@@ -90,26 +99,10 @@ base <- base %>%
       educ > 90 ~ NA_real_
     )
   )
+
+#The age, weight and height looks normal now.
 summary(base)
 
-# Make table to show quantitative data by place
-base %>% # %>% Pipes data to group_by() function
-  group_by(type_place) %>% # group_by() organises data by place
-  summarise(count = n()) # summarise() reduces to descriptive stat
-
-base %>% # %>% Pipes data to group_by() function
-  group_by(type_place) %>% # group_by() organises data by place
-  count() # What it says on the tin!
-
-# Make table to show quantitative data by type of place
-base %>% # %>% Pipes data to group_by() function
-  group_by(type_place) %>% # group_by() organises data by place
-  summarise(count = n(), # count is new variable
-            # percent is a new variable, sum() and nrow() are functions
-            percent = (sum(count) / nrow(base)) * 100,
-            mean_age = mean(age), # mean age by place
-            mean_height = mean(height), # mean height by place
-            mean_weight = mean(weight)) # mean weight by place
 # Make table to show quantitative data by type of place
 base %>%
   group_by(type_place) %>%
@@ -117,7 +110,8 @@ base %>%
             percent = (sum(count) / nrow(base)) * 100,
             mean_age = mean(age),
             mean_height = mean(height, na.rm = TRUE ),
-            mean_weight = mean(weight, na.rm = TRUE))
+            mean_weight = mean(weight, na.rm = TRUE),
+            female_prop = sum(female)/ sum(count))
 
 # Make table to show quantitative data by female
 base %>%
@@ -197,6 +191,9 @@ ggplot(base, aes(x = height, y = weight)) +
   geom_point() +
   ggtitle("Height vs weight")
 
+base %>% mutate(imc = weight/((height/100)^2)) %>%
+    ggpairs(columns = c("age", "educ", "imc", "female", "type_place"))
+
 grid.arrange(
   ggplot(base, aes(x = age, y = height)) +
     geom_point() +
@@ -242,3 +239,7 @@ ggplot(base, aes(x = age, y = educ,
                  color = type_place,
                  shape = female)) +
   geom_point(size = 3)
+
+######save(base, here("data"))
+
+########## BASICS STATISTICS!!!!!!!
