@@ -22,3 +22,13 @@ summary(alumni)
 
 fit <- lm(alumnigivingrate ~ sfratio, data=alumni)
 summary(fit)
+
+alumni %>% ggplot(aes(sfratio,alumnigivingrate)) + geom_point() +geom_smooth(method = "lm", formua=y~x)+
+  xlab("Student / Faculty Ratio") + ylab("Percent Alumni who Donate") +
+  ggtitle("Relationship between Student / Faculty Ratio and Donations")
+ggsave(here("figures","akumni_regression.png"))
+
+alumni %>% ggplot(aes(sfratio,alumnigivingrate)) + geom_jitter() + geom_smooth(method = "lm", formua=y~x)+
+  xlab("Student / Faculty Ratio") + ylab("Percent Alumni who Donate") +
+  ggtitle("Relationship between Student / Faculty Ratio and Donations") + theme_economist()
+ggsave(here("figures","akumni_regression_jitter.png"))
