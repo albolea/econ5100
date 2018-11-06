@@ -4,47 +4,58 @@ library(ggthemes)
 library(GGally)
 
 #BUAN5510
-alumni <- read_csv(here("raw_data","Alumni.csv"))
-summary(alumni)
+load(here("data","LPGA.RData"))
 
-alumni %>% ggplot(aes(classeslt20,alumnigivingrate)) + geom_jitter()
-alumni %>% ggplot(aes(sfratio,alumnigivingrate)) + geom_jitter()
+LPGA <- LPGA %>% mutate(earnings.usd.million = earnings.usd/(10^6))
+summary(LPGA)
+
+fit1 <- lm(earnings.usd ~ greens.in.reg,data=LPGA)
+fit1b <- lm(earnings.usd.million ~ greens.in.reg,data=LPGA)
+
+fit2 <- lm(earnings.usd ~ putting.avg,data=LPGA)
+fit2b <- lm(earnings.usd.million ~ putting.avg,data=LPGA)
+
+fit3 <- lm(earnings.usd ~greens.in.reg + putting.avg ,data=LPGA)
+fit3b <- lm(earnings.usd.million ~greens.in.reg + putting.avg ,data=LPGA)
+
+r_adj = tibble(dollar = c(
+                        summary(fit1)$adj.r.squared,
+                        summary(fit2)$adj.r.squared,
+                        summary(fit3)$adj.r.squared ), 
+               million = c(
+                        summary(fit1b)$adj.r.squared,
+                        summary(fit2b)$adj.r.squared,
+                        summary(fit3b)$adj.r.squared ) )
+r_adj
+
+?mtcars #Motor Trend Car Road Tests
 
 
-alumni %>% ggpairs(columns = c("alumnigivingrate","classeslt20","sfratio"))
 
-# The linear approximation appears to make sence in this scenario
+car_ur <- lm(mpg ~ cyl + disp + hp + wt, data = mtcars)
+summary(car_ur)
+car_ur_summary <- summary(car_ur)
+#the variables are not independent significant, but are they jointly significant ?
 
-#2 - use summarise
+cor(mtcars$disp,mtcars$hp)
 
-mean(alumni$classeslt20)
-sd(alumni$classeslt20)
-min(alumni$classeslt20)
-max(alumni$classeslt20)
+#Restricted Model
+car_r <- lm(mpg ~ cyl + wt, data= mtcars)
 
-mean(alumni$sfratio)
-sd(alumni$sfratio)
-min(alumni$sfratio)
-max(alumni$sfratio)
+summary(car_r)
 
-mean(alumni$alumnigivingrate)
-sd(alumni$alumnigivingrate)
-min(alumni$alumnigivingrate)
-max(alumni$alumnigivingrate)
+#The R-squared version
+r2_ur <- summary(car_ur)$r.squared
+r2_r <- summary(car_r)$r.squared
 
-model_1 <- lm(alumnigivingrate~classeslt20,data = alumni)
-summary(model_1)
-# The independent variable has a positive slope as expected with the graph; The b1 is statistic
-#significant at almost 100% but the H0 for b0 is not statistic significant
-#R2 is 42% which means that 42% of the variability of giving rates is explanied by the variability of Classes 
-#with less than 20 students
+q <- length(car_ur$coefficients) - length(car_r$coefficients) 
+n_k_1 <- (length(car_r$residuals) - length(car_ur$coefficients))
+F_value <- ((r2_ur - r2_r)/q)/((1-r2_ur)*n_k_1)
+qf(0.9,df= q, df2= n_k_1) #Critical Value for 10% sig level
 
-model_2 <- lm(alumnigivingrate~sfratio,data = alumni)
-summary(model_2)
-# The independent variable has a negative slope as expected with the graph; The b1 is statistic
-#significant at almost 100% as well as b0
-#R2 is 55% which means that 55% of the variability of giving rates is explanied by the variability of  
-#student facult ratio.
+### Function Version
+#install.packages("car")
+library(car) #Regression Analysis Packge
+Hnull <- c("disp = 0", "hp = 0")
+linearHypothesis(car_ur,Hnull)
 
-#both variables are related to the size of school professors to students, so it is expected that both 
-#variables are dependent. The Correl between them is -0.79 
